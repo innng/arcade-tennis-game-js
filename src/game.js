@@ -1,107 +1,179 @@
-/* All iterative things in the game are here.
- */
+var canvas;                 // info about dimensions of the display area
+var canvasContext;          // gaphical info used to draw forms
 
-// height of the paddles
-const H_PADDLE = 100;
-// width of the paddles
-const W_PADDLE = 10;
-// position of the left paddle from the canvas' border
-const L_PADDLE = 5;
-// position of the right paddle from the canvas' border
-const R_PADDLE = 785;
-// radius of the ball
-const RADIUS = 10;
+var xBall = 50;             // ball's position in x-axis
+var xBallSpeed = 10;        // ball's speed in the x-axis
+var yBall = 50;            // ball's position in y-axis
+var yBallSpeed = 4;        // ball's speed in the y-axis
 
-// object canvas (black rectangle)
-var canvas;
-// everything inside the block
-var canvasContext;
-// position of the ball in X-axis
-var ballX = 50;
-// position of the ball in Y-axis
-var ballY = 50;
-// speed of the ball in X-axis
-var ballSpeedX = 10;
-// speed of the ball in Y-axis
-var ballSpeedY = 4;
-// position of the left paddle in Y-axis
-var paddleOneY = 250;
-// position of the right paddle in Y-axis
-var paddleTwoY = 250;
+var yLeftPaddle = 250;      // left paddle's position in y-axis
+var yRightPaddle = 250;     // right paddle's position in y-axis
 
-// run the block code only after all the page has loaded
+var player1Score = 0;       // total of points for player
+var player2Score = 0;       // total of points for pc
+
+var endGame = false;        // flag to indicating end of the game
+
+const RADIUS_BALL = 10;     // ball's radius
+const WIDTH_PADDLE = 10;    // paddles' width
+const HEIGHT_PADDLE = 100;  // paddles' height
+const PADDLE_BORDER = 0;    // distance between canvas border and the paddles
+const WINNING_SCORE = 3;   // biggest score one player can achieve
+
+// let the HTML page load before running js code
 window.onload = function() {
-canvas = document.getElementById('gameCanvas');
-canvasContext = canvas.getContext('2d');
+    canvas = document.getElementById('gameCanvas');
+    canvasContext = canvas.getContext('2d');
 
-// setting 30 frames per second just because is fluid and nice
-var framesPerSecond = 30;
-// run a block of methods 30 times in a second 
-setInterval(function() { move(); draw(); }, 1000/framesPerSecond);
+    // set the ball's movement
+    var frameRate = 1000/30;
+    setInterval(function() { move(); draw(); }, frameRate);
 
-// the listener waits for an event of the type 'mousemove' and call an inline function
-canvas.addEventListener('mousemove', function(evt) {
-	// object mousePos receives the relative position of the mouse
-	var mousePos = calcMousePos(evt);
-	// left paddle position is adjusted
-	paddleOneY = mousePos.y - (H_PADDLE/2);
-});
+    canvas.addEventListener('mousedown', handleMouseClick);
+
+    // call function if the event 'mousemove' happens
+    canvas.addEventListener('mousemove', function(evt) {
+        var pos = mousePos(evt);
+        yLeftPaddle = pos.y - (HEIGHT_PADDLE/2);
+    });
 }
 
-// calculate the mouse position each time its moves
-// receive an event that fires every time the mouse moves (evt: event coordinates data)
-function calcMousePos(evt) {
-// area of the game's canvas
-var rect = canvas.getBoundingClientRect();
-// handle for the html page
-var root = document.documentElement;
-// take the absolut position of the mouse, then subtract the borders of the canvas and any possible scroll
-var mouseX = evt.clientX - rect.left - root.scrollLeft;
-var mouseY = evt.clientY - rect.top - root.scrollTop;
-// return the relative position of the mouse
-return {
-	x:mouseX,
-	y:mouseY
-};
-}
-
-// control all the movimentation of the ball
+// moves the elements in the canvas
 function move() {
-// change its speed
-ballX += ballSpeedX;
-ballY += ballSpeedY;
+    if(endGame)
+        return;
 
-// test the borders in the horizontal
-if(ballX < 0 || ballX > canvas.width)
-	ballSpeedX = -ballSpeedX;
+    pcMovement();
 
-// test the borders in the vertical
-if(ballY < 0 || ballY > canvas.height)
-	ballSpeedY = -ballSpeedY;
+    xBall += xBallSpeed;    // moves the ball in the x-axis
+    yBall += yBallSpeed;    // moves the ball in the y-axis
+
+    // test x-axis limits
+    if(xBall < 0)
+        if(yBall > yLeftPaddle && yBall < yLeftPaddle + HEIGHT_PADDLE) {
+            xBallSpeed = -xBallSpeed;
+
+            // calculates the angle for hitting the ball
+            var delta = yBall - (yLeftPaddle + HEIGHT_PADDLE/2);
+            yBallSpeed = delta * 0.35;
+        }
+        else {
+            player2Score++;
+            resetBall();
+        }
+
+    if(xBall > canvas.width)
+        if(yBall > yRightPaddle && yBall < yRightPaddle + HEIGHT_PADDLE) {
+            xBallSpeed = -xBallSpeed;
+
+            // calculates the angle for hitting the ball
+            var delta = yBall - (yRightPaddle + HEIGHT_PADDLE/2);
+            yBallSpeed = delta * 0.35;
+        }
+        else {
+            player1Score++;
+            resetBall();
+        }
+
+    // test y-axis limits
+    if(yBall < 0 || yBall > canvas.height)
+        yBallSpeed = -yBallSpeed;
 }
 
-// draw all the figures used in the game
+// draws every element
 function draw() {
-// canvas
-colorRect(0, 0, canvas.width, canvas.height, 'black');
-// left paddle
-colorRect(L_PADDLE, paddleOneY, W_PADDLE, H_PADDLE, 'white');
-// right paddle
-colorRect(R_PADDLE, paddleTwoY, W_PADDLE, H_PADDLE, 'white');
-// ball
-colorCircle(ballX, ballY, RADIUS, 'white');
+    const X_RIGHT_PADDLE = canvas.width - PADDLE_BORDER - WIDTH_PADDLE;
+    // canvasContext.font = '20px Calibri';
+
+    // background
+    colorRect(0, 0, canvas.width, canvas.height, 'black');
+
+    if(endGame) {
+        gameOverMenu();
+        return;
+    }
+
+    // net
+    drawNet();
+
+    // left paddle
+    colorRect(PADDLE_BORDER, yLeftPaddle, WIDTH_PADDLE, HEIGHT_PADDLE, 'white');
+    // right paddle
+    colorRect(X_RIGHT_PADDLE, yRightPaddle, WIDTH_PADDLE, HEIGHT_PADDLE, 'white');
+    // ball
+    colorCircle(xBall, yBall, RADIUS_BALL, 'white');
+    // scores
+    canvasContext.fillText(player1Score, 100, 100);
+    canvasContext.fillText(player2Score, canvas.width - 100, 100);
 }
 
-// construct a rectangle
-function colorRect(left, top, width, height, color) {
-canvasContext.fillStyle = color;
-canvasContext.fillRect(left, top, width, height);
+// creates a colored rectangle
+function colorRect(xLeft, yTop, width, height, color) {
+    canvasContext.fillStyle = color;
+    canvasContext.fillRect(xLeft, yTop, width, height);
 }
 
-// construct a circle
-function colorCircle(xAxis, yAxis, radius, color) {
-canvasContext.fillStyle = color;
-canvasContext.beginPath();
-canvasContext.arc(xAxis, yAxis, radius, 0, 2*Math.PI, true);
-canvasContext.fill();
+// creates a colored circle
+function colorCircle(x, y, radius, color) {
+    canvasContext.fillStyle = color;
+    canvasContext.beginPath();
+    canvasContext.arc(x, y, radius, 0, Math.PI*2, true);
+    canvasContext.fill();
+}
+
+// captures mouse's movement, evt: receives mouse's coordinates
+function mousePos(evt) {
+    // area of the canvas
+    var rect = canvas.getBoundingClientRect();
+    // handle on the HTML page
+    var root = document.documentElement;
+    // getting the relative mouse's position based on the canvas and the scroll
+    var xMouse = evt.clientX - rect.left - root.scrollLeft;
+    var yMouse = evt.clientY - rect.top - root.scrollTop;
+
+    return {
+            x: xMouse, y: yMouse
+    };
+}
+
+function resetBall() {
+    if(player1Score >= WINNING_SCORE || player2Score >= WINNING_SCORE)
+        endGame = true;
+
+    xBallSpeed = -xBallSpeed;
+    xBall = canvas.width/2;
+    yBall = canvas.height/2;
+}
+
+function pcMovement() {
+    var yRightPaddleCenter = yRightPaddle + (HEIGHT_PADDLE/2)
+    if(yRightPaddleCenter < yBall - 30)
+        yRightPaddle += 6;
+    else if(yRightPaddleCenter > yBall + 30)
+        yRightPaddle -= 6;
+}
+
+function gameOverMenu() {
+    // canvasContext.font = '60px Calibri';
+    canvasContext.fillStyle = 'white';
+
+    if(player1Score >= WINNING_SCORE)
+        canvasContext.fillText("Player won!", 350, 200);
+    else if(player2Score >= WINNING_SCORE)
+        canvasContext.fillText("Computer won!", 350, 200);
+
+    canvasContext.fillText("Click to continue", 350, 500);
+}
+
+function handleMouseClick(evt) {
+    if(endGame) {
+        player1Score = 0;
+        player2Score = 0;
+        endGame = false;
+    }
+}
+
+function drawNet() {
+    for(var i = 0; i < canvas.height; i += 40)
+        colorRect(canvas.width/2 -1, i, 2, 20, 'white');
 }
