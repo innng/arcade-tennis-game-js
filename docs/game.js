@@ -18,7 +18,7 @@ const RADIUS_BALL = 10;     // ball's radius
 const WIDTH_PADDLE = 10;    // paddles' width
 const HEIGHT_PADDLE = 100;  // paddles' height
 const PADDLE_BORDER = 0;    // distance between canvas border and the paddles
-const WINNING_SCORE = 3;   // biggest score one player can achieve
+const WINNING_SCORE = 10;   // biggest score one player can achieve
 
 // let the HTML page load before running js code
 window.onload = function() {
